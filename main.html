@@ -32,11 +32,6 @@
             padding: 5px;
             border-left: 3px solid #888;
         }
-        .reactions {
-            margin-top: 10px;
-            font-size: 14px;
-            color: #bbb;
-        }
         .message strong {
             color: #ffffff;
         }
@@ -70,6 +65,11 @@
 
         function getUsernameFromCode(authorCode) {
             return userMapping[authorCode] || 'Unknown Author'; // Fallback to 'Unknown Author' if not found
+        }
+
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp); // Convert Unix timestamp to Date object
+            return date.toLocaleString(); // Returns a human-readable date and time string
         }
 
         document.getElementById('fileInput').addEventListener('change', function(event) {
@@ -106,6 +106,7 @@
                                             const username = getUsernameFromCode(authorCode); // Get the username from the mapping
                                             const content = item.content || 'N/A';
                                             const replies = item.replies || [];
+                                            const timestamp = item.timestamp ? formatTimestamp(item.timestamp) : 'Unknown Time'; // Convert timestamp
 
                                             // Add the message to the list of all messages
                                             allMessages.push({ id: item._id, author: username, content: content });
@@ -113,7 +114,8 @@
                                             outputHtml += `
                                                 <div class="message">
                                                     <strong>Author:</strong> ${username}<br>
-                                                    <strong>Content:</strong> ${content}
+                                                    <strong>Content:</strong> ${content}<br>
+                                                    <strong>Timestamp:</strong> ${timestamp}
                                             `;
 
                                             // Display replies if available
@@ -124,7 +126,7 @@
                                                     const replyContent = replyMessage ? replyMessage.content : 'Reply content not found';
                                                     const replyAuthor = replyMessage ? replyMessage.author : 'Unknown Author';
 
-                                                    outputHtml += `Reply: <strong>${replyAuthor}</strong> - ${replyContent}<br>`;
+                                                    outputHtml += `Reply #${replyIndex + 1}: <strong>${replyAuthor}</strong> - ${replyContent}<br>`;
                                                 });
                                                 outputHtml += '</div>';
                                             }
