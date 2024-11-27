@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON File Parser</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        .output {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #444;
+            background-color: #1e1e1e;
+        }
+        .message {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-bottom: 1px solid #555;
+            background-color: #2c2c2c;
+        }
+        .message:last-child {
+            border-bottom: none;
+        }
+        .replies {
+            margin-left: 20px;
+            background-color: #333;
+            padding: 5px;
+            border-left: 3px solid #888;
+        }
+        .reactions {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #bbb;
+        }
+        .message strong {
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <h1>JSON File Parser</h1>
+    <p>Select a JSON file with multiple lines to parse and display each line separately:</p>
+    <input type="file" id="fileInput" accept=".json">
+    <div class="output" id="output"></div>
+
+    <script type="module">
+        // Load the user data and map author codes to usernames
+        let userMapping = {};
+
+        function loadUsers(usersJson) {
+            const lines = usersJson.split('\n');
+            lines.forEach(line => {
+                if (line.trim() !== '') {
+                    try {
+                        const data = JSON.parse(line);
+                        const userId = data.user._id;
+                        const username = data.user.username;
+                        userMapping[userId] = username; // Map author ID to username
+                    } catch (err) {
+                        console.error('Error parsing user data:', err);
+                    }
+                }
+            });
+        }
+
+        function getUsernameFromCode(authorCode) {
+            return userMapping[authorCode] || 'Unknown Author'; // Fallback to 'Unknown Author' if not found
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+
+            if (file) {
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    const fileContent = e.target.result;
+
+                    // Split the file content by lines (assuming each line contains a separate JSON array)
+                    const lines = fileContent.split('\n');
+                    let outputHtml = '';
+                    let allMessages = [];
+
+                    // Load the user data file (this should be done separately or at the same time)
+                    fetch('users.json')  // Assume users.json is in the same directory
+                        .then(response => response.text())
+                        .then(usersJson => {
+                            loadUsers(usersJson); // Load the user data into the mapping
+
+                            lines.forEach((line, index) => {
+                                const trimmedLine = line.trim();
+
+                                if (trimmedLine === '') return;
+
+                                try {
+                                    const items = JSON.parse(trimmedLine);
+
+                                    if (Array.isArray(items)) {
+                                        items.forEach((item) => {
+                                            const authorCode = item.author || 'N/A';
+                                            const username = getUsernameFromCode(authorCode); // Get the username from the mapping
+                                            const content = item.content || 'N/A';
+                                            const replies = item.replies || [];
+
+                                            // Add the message to the list of all messages
+                                            allMessages.push({ id: item._id, author: username, content: content });
+
+                                            outputHtml += `
+                                                <div class="message">
+                                                    <strong>Author:</strong> ${username}<br>
+                                                    <strong>Content:</strong> ${content}
+                                            `;
+
+                                            // Display replies if available
+                                            if (replies.length > 0) {
+                                                outputHtml += '<div class="replies"><strong>Replies:</strong><br>';
+                                                replies.forEach((replyId, replyIndex) => {
+                                                    const replyMessage = allMessages.find(message => message.id === replyId);
+                                                    const replyContent = replyMessage ? replyMessage.content : 'Reply content not found';
+                                                    const replyAuthor = replyMessage ? replyMessage.author : 'Unknown Author';
+
+                                                    outputHtml += `Reply: <strong>${replyAuthor}</strong> - ${replyContent}<br>`;
+                                                });
+                                                outputHtml += '</div>';
+                                            }
+
+                                            outputHtml += '</div>';
+                                        });
+                                    } else {
+                                        outputHtml += `
+                                            <div class="message">
+                                                <strong>Error in Message #${index + 1}:</strong> Expected an array, but got an object.
+                                            </div>
+                                        `;
+                                    }
+                                } catch (err) {
+                                    outputHtml += `
+                                        <div class="message">
+                                            <strong>Error in Message #${index + 1}:</strong> Invalid JSON format
+                                        </div>
+                                    `;
+                                }
+                            });
+
+                            // Display the output for all messages
+                            document.getElementById('output').innerHTML = outputHtml;
+                        })
+                        .catch(error => console.error('Error loading users.json:', error));
+                };
+
+                reader.readAsText(file);
+            } else {
+                alert('Please select a file.');
+            }
+        });
+    </script>
+</body>
+</html>
